@@ -1,0 +1,225 @@
+<!-- templates/livraison/feuille_detail.html -->
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Feuille de route</title>
+  <style>
+    .badge{padding:2px 6px;border-radius:4px}
+    .green{background:#c8f7c5}.orange{background:#ffe6a7}.red{background:#f8c5c5}
+    .produits-sacs{background:#f8f9fa;padding:8px;border-radius:4px;margin:8px 0}
+    .tag{display:inline-block;background:#007bff;color:white;padding:2px 6px;border-radius:12px;font-size:12px;margin:2px}
+    body{font-family:Arial,sans-serif;margin:20px;background:#f5f5f5}
+    .container{max-width:800px;margin:0 auto;background:white;padding:20px;border-radius:8px;box-shadow:0 2px 4px rgba(0,0,0,0.1)}
+    .header{background:#007bff;color:white;padding:15px;border-radius:8px;margin-bottom:20px}
+    .livraison-item{border:1px solid #ddd;border-radius:8px;padding:15px;margin-bottom:15px}
+    .btn{background:#007bff;color:white;border:none;padding:8px 16px;border-radius:4px;cursor:pointer}
+    .btn:hover{background:#0056b3}
+    .btn-success{background:#28a745}
+    .btn-warning{background:#ffc107;color:#212529}
+    .btn-danger{background:#dc3545}
+    .form-group{margin-bottom:10px}
+    .form-group label{display:block;margin-bottom:5px;font-weight:bold}
+    .form-group input,.form-group select{width:100%;padding:8px;border:1px solid #ddd;border-radius:4px}
+    .status-badge{display:inline-block;padding:4px 8px;border-radius:12px;font-size:12px;font-weight:bold}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h2> Feuille de route #{{ feuille.id }}</h2>
+      <p><strong>Chauffeur:</strong> {{ feuille.chauffeur.user.get_full_name|default:feuille.chauffeur.user.username }}</p>
+      <p><strong>Véhicule:</strong> {{ feuille.chauffeur.vehicule }} — <strong>Immat:</strong> {{ feuille.chauffeur.immatriculation }}</p>
+      <p><strong>Date:</strong> {{ feuille.date_route|default:feuille.date_creation }}</p>
+      <p><strong>Statut:</strong> 
+        <span class="status-badge {% if feuille.statut == 'terminee' %}green{% elif feuille.statut == 'probleme' %}red{% else %}orange{% endif %}">
+          {{ feuille.get_statut_display }}
+        </span>
+      </p>
+    </div>
+
+    {% if feuille.qr_code %}
+      <div style="text-align:center;margin-bottom:20px;">
+        <p><strong>QR Code de la feuille:</strong></p>
+        <img src="{{ feuille.qr_code.url }}" alt="QR" width="150" style="border:2px solid #ddd;border-radius:8px;">
+      </div>
+    {% endif %}
+
+    {% if feuille.statut == 'planifie' %}
+      <form method="post" style="margin-bottom:20px;">
+        {% csrf_token %}
+        <button type="submit" name="start_route" class="btn btn-success"> Marquer "En route"</button>
+      </form>
+    {% endif %}
+
+    <h3> Livraisons ({{ livraisons|length }})</h3>
+    
+    {% for l in livraisons %}
+      <div class="livraison-item">
+        <div style="margin-bottom:15px;">
+          <h4>{{ l.client.nom }} — {{ l.client.telephone }}</h4>
+          <p><strong>Adresse:</strong> {{ l.client.adresse }}</p>
+          <p><strong>Référence:</strong> {{ l.reference_commande }} — <strong>Quantité:</strong> {{ l.quantite }}</p>
+          {% if l.horaire_estime %}
+            <p><strong>Horaire estimé:</strong> {{ l.horaire_estime }}</p>
+          {% endif %}
+          <p><strong>Statut:</strong> 
+            <span class="status-badge {% if l.statut == 'livre' %}green{% elif l.statut == 'probleme' %}red{% else %}orange{% endif %}">
+              {{ l.get_statut_display }}
+            </span>
+          </p>
+        </div>
+
+        {% if l.produits.all or l.sacs.all %}
+          <div class="produits-sacs">
+            {% if l.produits.all %}
+              <p><strong>Produits:</strong></p>
+              {% for produit in l.produits.all %}
+                <span class="tag">{{ produit.nom }} ({{ produit.prix_unitaire }}€)</span>
+              {% endfor %}
+            {% endif %}
+            {% if l.sacs.all %}
+              <p><strong>Sacs:</strong></p>
+              {% for sac in l.sacs.all %}
+                <span class="tag">{{ sac.nom }} - {{ sac.couleur }}</span>
+              {% endfor %}
+            {% endif %}
+          </div>
+        {% endif %}
+
+        <form action="{% url 'livraison:update_livraison_status' l.id %}" method="post" enctype="multipart/form-data">
+          {% csrf_token %}
+          <div class="form-group">
+            <label>Changer le statut:</label>
+            <select name="statut" class="form-control">
+              <option value="en_cours" {% if l.statut == 'en_cours' %}selected{% endif %}>En cours</option>
+              <option value="livre" {% if l.statut == 'livre' %}selected{% endif %}>Livré</option>
+              <option value="probleme" {% if l.statut == 'probleme' %}selected{% endif %}>Problème</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Preuve photo (optionnel):</label>
+            <input type="file" name="preuve_photo" accept="image/*" capture="environment">
+          </div>
+          <div class="form-group">
+            <label>Signature client (optionnel):</label>
+            <input type="file" name="signature_client" accept="image/*">
+          </div>
+          <button type="submit" class="btn">💾 Mettre à jour</button>
+        </form>
+
+        {% if l.preuve_photo %}
+          <div style="margin-top:10px;">
+            <p><strong> Photo de preuve:</strong></p>
+            <img src="{{ l.preuve_photo.url }}" alt="" width="200" style="border-radius:8px;">
+          </div>
+        {% endif %}
+        
+        {% if l.signature_client %}
+          <div style="margin-top:10px;">
+            <p><strong>✍️ Signature client:</strong></p>
+            <img src="{{ l.signature_client.url }}" alt="" width="200" style="border-radius:8px;">
+          </div>
+        {% endif %}
+        
+        {% if l.date_livraison %}
+          <div style="margin-top:10px;color:#28a745;">
+            <strong>✅ Livré le {{ l.date_livraison|date:"d/m/Y à H:i" }}</strong>
+          </div>
+        {% endif %}
+        
+        <div style="margin-top:10px;font-size:12px;color:#666;">
+          <strong>Lien de suivi client:</strong> 
+          <a href="{{ l.get_public_url }}" target="_blank">{{ request.scheme }}://{{ request.get_host }}{{ l.get_public_url }}</a>
+        </div>
+      </div>
+    {% empty %}
+      <div style="text-align:center;padding:40px;color:#666;">
+        <h3> Aucune livraison</h3>
+        <p>Cette feuille de route ne contient aucune livraison.</p>
+      </div>
+    {% endfor %}
+  </div>
+
+  <script>
+    // Géolocalisation automatique
+    if (navigator.geolocation) {
+      setInterval(() => {
+        navigator.geolocation.getCurrentPosition(pos => {
+          const formData = new FormData();
+          formData.append('lat', pos.coords.latitude);
+          formData.append('lng', pos.coords.longitude);
+          fetch(window.location.pathname + 'position/', { 
+            method: 'POST', 
+            body: formData, 
+            headers: {'X-CSRFToken': '{{ csrf_token }}'}
+          }).catch(()=>{});
+        });
+      }, 60000); // Toutes les minutes
+    }
+  </script>
+</body>
+</html>
+<!-- ```
+
+```
+
+### 5. Mettre à jour les URLs principales pour inclure l'interface chauffeur
+
+```python:suivi_livraison/urls.py
+from django.contrib import admin
+from django.urls import include, path
+from django.conf import settings
+from django.conf.urls.static import static
+from django.shortcuts import redirect
+
+def redirect_to_dashboard(request):
+    return redirect('admin_dashboard:index')
+
+urlpatterns = [
+    path('', redirect_to_dashboard, name='home'),
+    path('admin/', admin.site.urls),
+    path('chauffeur/', include('chauffeur.urls', namespace='chauffeur')),
+    path('livraison/', include('livraison.urls', namespace='livraison')),
+    path('dashboard/', include('admin_dashboard.urls', namespace='admin_dashboard')),
+]
+
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+```
+
+### Résumé des améliorations :
+
+1. **Erreur corrigée** : Remplacement de `request.build_absolute_uri(l.get_public_url)` par `{{ request.scheme }}://{{ request.get_host }}{{ l.get_public_url }}`
+
+2. **Interface chauffeur complète** :
+   - Page de connexion sécurisée
+   - Tableau de bord avec statistiques
+   - Gestion des feuilles de route
+   - Changement de statut en temps réel
+
+3. **Fonctionnalités chauffeur** :
+   - Connexion avec authentification
+   - Vue d'ensemble des feuilles assignées
+   - Actions sur les statuts (En route, Terminée, Problème)
+   - Interface mobile-friendly
+
+4. **Sécurité** :
+   - Vérification que l'utilisateur est bien un chauffeur
+   - Accès restreint aux feuilles de route du chauffeur
+   - Déconnexion sécurisée
+
+5. **Interface moderne** :
+   - Design responsive
+   - Couleurs cohérentes
+   - Icônes et badges de statut
+   - Navigation intuitive
+
+Maintenant les chauffeurs peuvent :
+- Se connecter via `/chauffeur/login/`
+- Voir leurs feuilles de route
+- Changer les statuts directement
+- Accéder aux détails complets via le lien "Ouvrir feuille complète"
+
+L'interface admin reste accessible pour la gestion complète !
+ -->

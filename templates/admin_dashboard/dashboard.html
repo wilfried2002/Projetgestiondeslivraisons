@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Tableau de bord - Suivi Livraison</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            border-bottom: 2px solid #007bff;
+            padding-bottom: 10px;
+        }
+        .filters {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        .filters label {
+            margin-right: 15px;
+            font-weight: bold;
+        }
+        .filters input, .filters select {
+            padding: 5px;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+            margin-right: 15px;
+        }
+        .filters button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+        .filters button:hover {
+            background: #0056b3;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background-color: #007bff;
+            color: white;
+            font-weight: bold;
+        }
+        tr:hover {
+            background-color: #f8f9fa;
+        }
+        .status-dot {
+            height: 12px;
+            width: 12px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 5px;
+        }
+        .status-green { background: #28a745; }
+        .status-orange { background: #ffc107; }
+        .status-red { background: #dc3545; }
+        .status-badge {
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .badge-green { background: #d4edda; color: #155724; }
+        .badge-orange { background: #fff3cd; color: #856404; }
+        .badge-red { background: #f8d7da; color: #721c24; }
+        .driver-link {
+            color: #007bff;
+            text-decoration: none;
+        }
+        .driver-link:hover {
+            text-decoration: underline;
+        }
+        .empty-message {
+            text-align: center;
+            color: #666;
+            font-style: italic;
+            padding: 40px;
+        }
+        .summary-stats {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        .stat-card {
+            background: #e9ecef;
+            padding: 15px;
+            border-radius: 5px;
+            text-align: center;
+            flex: 1;
+        }
+        .stat-number {
+            font-size: 24px;
+            font-weight: bold;
+            color: #007bff;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📊 Tableau de bord - Suivi des Livraisons</h1>
+        
+        <div class="filters">
+            <form method="get">
+                <label>Date:</label>
+                <input type="date" name="date" value="{{ date_filter }}">
+                
+                <label>Statut:</label>
+                <select name="statut">
+                    <option value="">Tous</option>
+                    <option value="planifie" {% if request.GET.statut == 'planifie' %}selected{% endif %}>Planifié</option>
+                    <option value="en_route" {% if request.GET.statut == 'en_route' %}selected{% endif %}>En route</option>
+                    <option value="terminee" {% if request.GET.statut == 'terminee' %}selected{% endif %}>Terminée</option>
+                    <option value="probleme" {% if request.GET.statut == 'probleme' %}selected{% endif %}>Problème</option>
+                </select>
+                
+                <label>Véhicule:</label>
+                <input type="text" name="vehicule" value="{{ request.GET.vehicule }}" placeholder="Rechercher par véhicule">
+                
+                <button type="submit">🔍 Filtrer</button>
+                <a href="{% url 'admin_dashboard:index' %}" style="margin-left: 10px; color: #666;">Réinitialiser</a>
+            </form>
+        </div>
+
+        {% if feuilles %}
+            <div class="summary-stats">
+                <div class="stat-card">
+                    <div class="stat-number">{{ feuilles|length }}</div>
+                    <div>Feuilles de route</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">
+                        {% with total_livraisons=0 %}
+                            {% for f, s in feuilles %}
+                                {% with total_livraisons=total_livraisons|add:s.total %}{% endwith %}
+                            {% endfor %}
+                            {{ total_livraisons }}
+                        {% endwith %}
+                    </div>
+                    <div>Total livraisons</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">
+                        {% with total_livrees=0 %}
+                            {% for f, s in feuilles %}
+                                {% with total_livrees=total_livrees|add:s.livre %}{% endwith %}
+                            {% endfor %}
+                            {{ total_livrees }}
+                        {% endwith %}
+                    </div>
+                    <div>Livraisons terminées</div>
+                </div>
+            </div>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Chauffeur</th>
+                        <th>Véhicule</th>
+                        <th>Statut</th>
+                        <th>Livraisons</th>
+                        <th>Position GPS</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for f, s in feuilles %}
+                        <tr>
+                            <td><strong>#{{ f.id }}</strong></td>
+                            <td>{{ f.chauffeur.user.get_full_name|default:f.chauffeur.user.username }}</td>
+                            <td>
+                                {% if f.chauffeur.vehicule %}
+                                    {{ f.chauffeur.vehicule }}
+                                    {% if f.chauffeur.immatriculation %}
+                                        <br><small>({{ f.chauffeur.immatriculation }})</small>
+                                    {% endif %}
+                                {% else %}
+                                    <em>Non défini</em>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <span class="status-dot status-{{ s.color }}"></span>
+                                <span class="status-badge badge-{{ s.color }}">
+                                    {{ f.get_statut_display }}
+                                </span>
+                            </td>
+                            <td>
+                                <strong>{{ s.livre }}/{{ s.total }}</strong> livrées
+                                {% if s.probleme %}
+                                    <br><span style="color: #dc3545;">⚠️ {{ s.probleme }} problème(s)</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if f.last_latitude and f.last_longitude %}
+                                    �� {{ f.last_latitude|floatformat:4 }}, {{ f.last_longitude|floatformat:4 }}
+                                    {% if f.last_position_at %}
+                                        <br><small>{{ f.last_position_at|date:"H:i" }}</small>
+                                    {% endif %}
+                                {% else %}
+                                    <em>Aucune position</em>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <a href="{{ f.get_driver_url }}" class="driver-link" target="_blank">
+                                    📱 Ouvrir feuille
+                                </a>
+                                {% if f.qr_code %}
+                                    <br><a href="{{ f.qr_code.url }}" target="_blank">📋 QR Code</a>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <div class="empty-message">
+                <h3>📭 Aucune feuille de route trouvée</h3>
+                <p>Il n'y a pas de feuilles de route pour la date sélectionnée.</p>
+                <p>Créez une nouvelle feuille de route via l'<a href="/admin/">interface d'administration</a>.</p>
+            </div>
+        {% endif %}
+    </div>
+</body>
+</html>

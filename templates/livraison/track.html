@@ -1,0 +1,51 @@
+<!-- templates/livraison/track.html -->
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Suivi commande</title>
+  <style>
+    .badge{padding:2px 6px;border-radius:4px}.green{background:#c8f7c5}.orange{background:#ffe6a7}.red{background:#f8c5c5}
+    .produits-sacs{background:#f8f9fa;padding:12px;border-radius:6px;margin:12px 0}
+    .tag{display:inline-block;background:#007bff;color:white;padding:4px 8px;border-radius:12px;font-size:12px;margin:2px}
+    body{font-family:Arial,sans-serif;max-width:600px;margin:20px auto;padding:20px}
+  </style>
+</head>
+<body>
+  <h2>📦 Commande {{ livraison.reference_commande }}</h2>
+  <p><strong>Client:</strong> {{ livraison.client.nom }}</p>
+  <p><strong>Adresse:</strong> {{ livraison.client.adresse }}</p>
+  <p><strong>Statut:</strong>
+    <span class="badge {% if livraison.statut == 'livre' %}green{% elif livraison.statut == 'probleme' %}red{% else %}orange{% endif %}">
+      {{ livraison.get_statut_display }}
+    </span>
+  </p>
+
+  {% if livraison.produits.all or livraison.sacs.all %}
+    <div class="produits-sacs">
+      <h3>📋 Détails de la commande</h3>
+      {% if livraison.produits.all %}
+        <p><strong>Produits commandés:</strong></p>
+        {% for produit in livraison.produits.all %}
+          <span class="tag">{{ produit.nom }} - {{ produit.prix_unitaire }}€</span>
+        {% endfor %}
+      {% endif %}
+      {% if livraison.sacs.all %}
+        <p><strong>Sacs inclus:</strong></p>
+        {% for sac in livraison.sacs.all %}
+          <span class="tag">{{ sac.nom }} ({{ sac.couleur }})</span>
+        {% endfor %}
+      {% endif %}
+    </div>
+  {% endif %}
+
+  {% if livraison.date_livraison %}
+    <p><strong>✅ Livré le:</strong> {{ livraison.date_livraison|date:"d/m/Y à H:i" }}</p>
+  {% endif %}
+  
+  {% if livraison.preuve_photo %}
+    <p><strong>📸 Preuve de livraison:</strong></p>
+    <img src="{{ livraison.preuve_photo.url }}" width="200" style="border-radius:8px;">
+  {% endif %}
+</body>
+</html>
