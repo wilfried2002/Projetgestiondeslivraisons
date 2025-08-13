@@ -44,7 +44,7 @@ class Client(models.Model):
 class Produit(models.Model):
     nom = models.CharField(max_length=100, verbose_name="Nom du produit")
     description = models.TextField(blank=True, verbose_name="Description")
-    prix_unitaire = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Prix unitaire (€)")
+    prix_unitaire = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Prix unitaire (FCFA)")
     actif = models.BooleanField(default=True, verbose_name="Produit actif")
     date_creation = models.DateTimeField(auto_now_add=True, verbose_name="Date de création")
 
