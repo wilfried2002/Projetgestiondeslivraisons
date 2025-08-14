@@ -7,6 +7,7 @@ from django.utils import timezone
 from django.views.decorators.http import require_POST
 from django.views.decorators.csrf import csrf_exempt  # keep CSRF for forms; can exempt GPS endpoint if needed
 from .models import FeuilleDeRoute, Livraison
+import json
 
 # def index(request):
 #     return HttpResponse("Welcome to the Livraison app!")
@@ -14,10 +15,20 @@ from .models import FeuilleDeRoute, Livraison
 def feuille_detail(request, token):
     feuille = get_object_or_404(FeuilleDeRoute, token=token)
     livraisons = feuille.livraisons.select_related('client').all().order_by('horaire_estime', 'id')
-    if request.method == 'POST' and 'start_route' in request.POST:
-        feuille.statut = 'en_route'
-        feuille.save(update_fields=['statut'])
-        return redirect('livraison:feuille_detail', token=token)
+    
+    if request.method == 'POST':
+        if 'start_route' in request.POST:
+            feuille.statut = 'en_route'
+            feuille.save(update_fields=['statut'])
+            return redirect('livraison:feuille_detail', token=token)
+        elif 'update_observations' in request.POST:
+            observations = request.POST.get('observations_chauffeur', '').strip()
+            if observations:
+                feuille.observations_chauffeur = observations
+                feuille.date_observations = timezone.now()
+                feuille.save(update_fields=['observations_chauffeur', 'date_observations'])
+            return redirect('livraison:feuille_detail', token=token)
+    
     context = {'feuille': feuille, 'livraisons': livraisons}
     return render(request, 'livraison/feuille_detail.html', context)
 
@@ -29,10 +40,16 @@ def update_livraison_status(request, pk):
         livraison.statut = statut
         if statut == 'livre' and not livraison.date_livraison:
             livraison.date_livraison = timezone.now()
+    
     if 'preuve_photo' in request.FILES:
         livraison.preuve_photo = request.FILES['preuve_photo']
     if 'signature_client' in request.FILES:
         livraison.signature_client = request.FILES['signature_client']
+    if 'signature_tactile' in request.POST:
+        signature_tactile = request.POST.get('signature_tactile', '').strip()
+        if signature_tactile:
+            livraison.signature_tactile = signature_tactile
+    
     livraison.save()
     return redirect('livraison:feuille_detail', token=livraison.feuille.token)
 

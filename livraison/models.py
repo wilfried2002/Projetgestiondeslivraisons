@@ -14,11 +14,33 @@ except ImportError:
     qrcode = None
 
 
+class Vehicule(models.Model):
+    nom = models.CharField(max_length=100, verbose_name="Nom du véhicule")
+    marque = models.CharField(max_length=50, verbose_name="Marque")
+    modele = models.CharField(max_length=50, verbose_name="Modèle")
+    immatriculation = models.CharField(max_length=20, unique=True, verbose_name="Immatriculation")
+    annee = models.PositiveIntegerField(blank=True, null=True, verbose_name="Année")
+    couleur = models.CharField(max_length=30, blank=True, verbose_name="Couleur")
+    capacite = models.CharField(max_length=50, blank=True, verbose_name="Capacité")
+    actif = models.BooleanField(default=True, verbose_name="Véhicule actif")
+    date_creation = models.DateTimeField(auto_now_add=True, verbose_name="Date de création")
+    notes = models.TextField(blank=True, verbose_name="Notes")
+
+    def __str__(self):
+        return f"{self.marque} {self.modele} - {self.immatriculation}"
+
+    class Meta:
+        verbose_name = "Véhicule"
+        verbose_name_plural = "Véhicules"
+        ordering = ['marque', 'modele']
+
+
 class Chauffeur(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     telephone = models.CharField(max_length=15)
-    vehicule = models.CharField(max_length=50, blank=True)
-    immatriculation = models.CharField(max_length=20, blank=True)
+    # Supprimer les champs vehicule et immatriculation
+    # vehicule = models.CharField(max_length=50, blank=True)
+    # immatriculation = models.CharField(max_length=20, blank=True)
 
     def __str__(self):
         return self.user.get_full_name() or self.user.username
@@ -49,7 +71,7 @@ class Produit(models.Model):
     date_creation = models.DateTimeField(auto_now_add=True, verbose_name="Date de création")
 
     def __str__(self):
-        return f"{self.nom} - {self.prix_unitaire}€"
+        return f"{self.nom} - {self.prix_unitaire} FCFA"
 
     class Meta:
         verbose_name = "Produit"
@@ -84,11 +106,16 @@ STATUTS_FEUILLE = [
 
 class FeuilleDeRoute(models.Model):
     chauffeur = models.ForeignKey(Chauffeur, on_delete=models.CASCADE, verbose_name="Chauffeur")
+    vehicule = models.ForeignKey(Vehicule, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Véhicule assigné")
     date_creation = models.DateField(auto_now_add=True, verbose_name="Date de création")
     date_route = models.DateField(null=True, blank=True, verbose_name="Date de route")
     statut = models.CharField(max_length=20, choices=STATUTS_FEUILLE, default='planifie', verbose_name="Statut")
     token = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
     qr_code = models.ImageField(upload_to='qr_codes/', blank=True, null=True, verbose_name="QR Code")
+    
+    # Nouveau champ pour les observations du chauffeur
+    observations_chauffeur = models.TextField(blank=True, verbose_name="Observations du chauffeur")
+    date_observations = models.DateTimeField(blank=True, null=True, verbose_name="Date des observations")
 
     # Dernière position connue
     last_latitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True, verbose_name="Latitude")
@@ -132,7 +159,8 @@ class Livraison(models.Model):
     horaire_estime = models.TimeField(blank=True, null=True, verbose_name="Horaire estimé")
     statut = models.CharField(max_length=20, choices=STATUTS_LIVRAISON, default='en_cours', verbose_name="Statut")
     preuve_photo = models.ImageField(upload_to="preuves/", blank=True, null=True, verbose_name="Preuve photo")
-    signature_client = models.ImageField(upload_to="signatures/", blank=True, null=True, verbose_name="Signature client")
+    signature_client = models.ImageField(upload_to="signatures/", blank=True, null=True, verbose_name="Signature client (fichier)")
+    signature_tactile = models.TextField(blank=True, verbose_name="Signature tactile (SVG)")
     date_livraison = models.DateTimeField(blank=True, null=True, verbose_name="Date de livraison")
     public_token = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
     

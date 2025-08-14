@@ -50,6 +50,49 @@
         .filters button:hover {
             background: #0056b3;
         }
+        
+        /* Nouveaux styles pour les boutons d'impression */
+        .print-buttons {
+            background: #e9ecef;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+        }
+        .print-btn {
+            background: #28a745;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            transition: background-color 0.3s;
+        }
+        .print-btn:hover {
+            background: #218838;
+            text-decoration: none;
+            color: white;
+        }
+        .print-btn.rapport {
+            background: #17a2b8;
+        }
+        .print-btn.rapport:hover {
+            background: #138496;
+        }
+        .print-btn.export {
+            background: #6f42c1;
+        }
+        .print-btn.export:hover {
+            background: #5a32a3;
+        }
+        
         table {
             width: 100%;
             border-collapse: collapse;
@@ -75,9 +118,9 @@
             display: inline-block;
             margin-right: 5px;
         }
-        .status-green { background: #28a745; }
-        .status-orange { background: #ffc107; }
-        .status-red { background: #dc3545; }
+        .status-green { background-color: #28a745; }
+        .status-orange { background-color: #ffc107; }
+        .status-red { background-color: #dc3545; }
         .status-badge {
             padding: 4px 8px;
             border-radius: 12px;
@@ -90,38 +133,55 @@
         .driver-link {
             color: #007bff;
             text-decoration: none;
+            font-weight: bold;
         }
         .driver-link:hover {
             text-decoration: underline;
         }
-        .empty-message {
-            text-align: center;
-            color: #666;
-            font-style: italic;
-            padding: 40px;
-        }
         .summary-stats {
-            display: flex;
-            gap: 20px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
             margin-bottom: 20px;
         }
         .stat-card {
-            background: #e9ecef;
+            background: #f8f9fa;
             padding: 15px;
-            border-radius: 5px;
+            border-radius: 8px;
             text-align: center;
-            flex: 1;
+            border-left: 4px solid #007bff;
         }
         .stat-number {
             font-size: 24px;
             font-weight: bold;
             color: #007bff;
         }
+        .empty-message {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>📊 Tableau de bord - Suivi des Livraisons</h1>
+        
+        <!-- Boutons d'impression et rapports -->
+        <div class="print-buttons">
+            <a href="{% url 'admin_dashboard:rapport_livraisons' %}" class="print-btn rapport">
+                 Rapport Analytique Livraisons
+            </a>
+            <a href="{% url 'admin_dashboard:rapport_feuilles_route' %}" class="print-btn rapport">
+                📋 Rapport Feuilles de Route
+            </a>
+            <a href="{% url 'admin_dashboard:export_csv_livraisons' %}" class="print-btn export">
+                📄 Export CSV Livraisons
+            </a>
+            <a href="{% url 'admin_dashboard:export_csv_feuilles_route' %}" class="print-btn export">
+                📄 Export CSV Feuilles Route
+            </a>
+        </div>
         
         <div class="filters">
             <form method="get">
@@ -193,13 +253,11 @@
                             <td><strong>#{{ f.id }}</strong></td>
                             <td>{{ f.chauffeur.user.get_full_name|default:f.chauffeur.user.username }}</td>
                             <td>
-                                {% if f.chauffeur.vehicule %}
-                                    {{ f.chauffeur.vehicule }}
-                                    {% if f.chauffeur.immatriculation %}
-                                        <br><small>({{ f.chauffeur.immatriculation }})</small>
-                                    {% endif %}
+                                {% if f.vehicule %}
+                                    {{ f.vehicule.marque }} {{ f.vehicule.modele }}
+                                    <br><small>({{ f.vehicule.immatriculation }})</small>
                                 {% else %}
-                                    <em>Non défini</em>
+                                    <em>Non assigné</em>
                                 {% endif %}
                             </td>
                             <td>
@@ -213,10 +271,13 @@
                                 {% if s.probleme %}
                                     <br><span style="color: #dc3545;">⚠️ {{ s.probleme }} problème(s)</span>
                                 {% endif %}
+                                {% if f.observations_chauffeur %}
+                                    <br><span style="color: #007bff;"> Observations</span>
+                                {% endif %}
                             </td>
                             <td>
                                 {% if f.last_latitude and f.last_longitude %}
-                                    �� {{ f.last_latitude|floatformat:4 }}, {{ f.last_longitude|floatformat:4 }}
+                                     {{ f.last_latitude|floatformat:4 }}, {{ f.last_longitude|floatformat:4 }}
                                     {% if f.last_position_at %}
                                         <br><small>{{ f.last_position_at|date:"H:i" }}</small>
                                     {% endif %}

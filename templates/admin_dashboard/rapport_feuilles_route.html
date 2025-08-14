@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Rapport - Feuilles de Route</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1, h2, h3 {
+            color: #333;
+            border-bottom: 2px solid #007bff;
+            padding-bottom: 10px;
+        }
+        .filters {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        .filters label {
+            margin-right: 15px;
+            font-weight: bold;
+        }
+        .filters input, .filters select {
+            padding: 5px;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+            margin-right: 15px;
+        }
+        .filters button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        .stat-card {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+            border-left: 4px solid #007bff;
+        }
+        .stat-number {
+            font-size: 36px;
+            font-weight: bold;
+            color: #007bff;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background-color: #007bff;
+            color: white;
+            font-weight: bold;
+        }
+        tr:hover {
+            background-color: #f8f9fa;
+        }
+        .btn {
+            background: #28a745;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 3px;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+            margin-right: 10px;
+        }
+        .btn:hover {
+            background: #218838;
+        }
+        .btn-secondary {
+            background: #6c757d;
+        }
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+        .section {
+            margin-bottom: 40px;
+        }
+        .status-badge {
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .status-planifie { background: #fff3cd; color: #856404; }
+        .status-en_route { background: #d1ecf1; color: #0c5460; }
+        .status-terminee { background: #d4edda; color: #155724; }
+        .status-probleme { background: #f8d7da; color: #721c24; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <h1>�� Rapport - Feuilles de Route</h1>
+            <div>
+                <a href="{% url 'admin_dashboard:export_csv_feuilles_route' %}" class="btn">📄 Export CSV</a>
+                <a href="{% url 'admin_dashboard:index' %}" class="btn btn-secondary">�� Retour Dashboard</a>
+            </div>
+        </div>
+        
+        <div class="filters">
+            <form method="get">
+                <label>Date début:</label>
+                <input type="date" name="date_debut" value="{{ date_debut }}">
+                
+                <label>Date fin:</label>
+                <input type="date" name="date_fin" value="{{ date_fin }}">
+                
+                <label>Statut:</label>
+                <select name="statut">
+                    <option value="">Tous</option>
+                    <option value="planifie" {% if request.GET.statut == 'planifie' %}selected{% endif %}>Planifié</option>
+                    <option value="en_route" {% if request.GET.statut == 'en_route' %}selected{% endif %}>En route</option>
+                    <option value="terminee" {% if request.GET.statut == 'terminee' %}selected{% endif %}>Terminée</option>
+                    <option value="probleme" {% if request.GET.statut == 'probleme' %}selected{% endif %}>Problème</option>
+                </select>
+                
+                <button type="submit">🔍 Filtrer</button>
+            </form>
+        </div>
+
+        <!-- Statistiques globales -->
+        <div class="section">
+            <h2>📈 Statistiques Globales</h2>
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-number">{{ total_feuilles }}</div>
+                    <div>Total Feuilles de Route</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Statistiques par statut -->
+        <div class="section">
+            <h2>📊 Répartition par Statut</h2>
+            {% if stats_statut %}
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Statut</th>
+                            <th>Nombre de Feuilles</th>
+                            <th>Total Livraisons</th>
+                            <th>Livraisons Livrées</th>
+                            <th>Livraisons Problème</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for stat in stats_statut %}
+                            <tr>
+                                <td>
+                                    <span class="status-badge status-{{ stat.statut }}">
+                                        {% if stat.statut == 'planifie' %}Planifié
+                                        {% elif stat.statut == 'en_route' %}En route
+                                        {% elif stat.statut == 'terminee' %}Terminée
+                                        {% elif stat.statut == 'probleme' %}Problème
+                                        {% else %}{{ stat.statut }}{% endif %}
+                                    </span>
+                                </td>
+                                <td><strong>{{ stat.total }}</strong></td>
+                                <td>{{ stat.total_livraisons }}</td>
+                                <td>{{ stat.livraisons_livrees }}</td>
+                                <td>{{ stat.livraisons_probleme }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% else %}
+                <p>Aucune donnée disponible pour la période sélectionnée.</p>
+            {% endif %}
+        </div>
+
+        <!-- Statistiques par chauffeur -->
+        <div class="section">
+            <h2>��‍�� Performance par Chauffeur</h2>
+            {% if stats_chauffeur %}
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Chauffeur</th>
+                            <th>Total Feuilles</th>
+                            <th>Planifiées</th>
+                            <th>En Route</th>
+                            <th>Terminées</th>
+                            <th>Problèmes</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for stat in stats_chauffeur %}
+                            <tr>
+                                <td><strong>{{ stat.chauffeur__user__first_name }} {{ stat.chauffeur__user__last_name }}</strong></td>
+                                <td>{{ stat.total }}</td>
+                                <td>{{ stat.planifie }}</td>
+                                <td>{{ stat.en_route }}</td>
+                                <td>{{ stat.terminee }}</td>
+                                <td>{{ stat.probleme }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% else %}
+                <p>Aucune donnée disponible pour la période sélectionnée.</p>
+            {% endif %}
+        </div>
+
+        <!-- Détail des feuilles de route -->
+        <div class="section">
+            <h2>📋 Détail des Feuilles de Route</h2>
+            {% if feuilles %}
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Date Route</th>
+                            <th>Chauffeur</th>
+                            <th>Véhicule</th>
+                            <th>Statut</th>
+                            <th>Livraisons</th>
+                            <th>Observations</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for feuille in feuilles %}
+                            <tr>
+                                <td>{{ feuille.id }}</td>
+                                <td>{{ feuille.date_route|default:feuille.date_creation }}</td>
+                                <td>{{ feuille.chauffeur.user.get_full_name|default:feuille.chauffeur.user.username }}</td>
+                                <td>
+                                    {% if feuille.vehicule %}
+                                        {{ feuille.vehicule.marque }} {{ feuille.vehicule.modele }}<br>
+                                        <small>{{ feuille.vehicule.immatriculation }}</small>
+                                    {% else %}
+                                        Non assigné
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="status-badge status-{{ feuille.statut }}">
+                                        {{ feuille.get_statut_display }}
+                                    </span>
+                                </td>
+                                <td>
+                                    {% with total=feuille.livraisons.count livre=feuille.livraisons.filter.statut='livre'|length probleme=feuille.livraisons.filter.statut='probleme'|length %}
+                                        <strong>{{ livre }}/{{ total }}</strong> livrées
+                                        {% if probleme > 0 %}
+                                            <br><span style="color: #dc3545;">⚠️ {{ probleme }} problème(s)</span>
+                                        {% endif %}
+                                    {% endwith %}
+                                </td>
+                                <td>
+                                    {% if feuille.observations_chauffeur %}
+                                        <span style="color: #007bff;">�� Observations</span>
+                                        {% if feuille.date_observations %}
+                                            <br><small>{{ feuille.date_observations|date:"d/m/Y H:i" }}</small>
+                                        {% endif %}
+                                    {% else %}
+                                        <em>Aucune</em>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% else %}
+                <p>Aucune feuille de route trouvée pour la période sélectionnée.</p>
+            {% endif %}
+        </div>
+    </div>
+</body>
+</html>

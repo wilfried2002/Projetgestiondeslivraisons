@@ -27,7 +27,7 @@
       {% if livraison.produits.all %}
         <p><strong>Produits commandés:</strong></p>
         {% for produit in livraison.produits.all %}
-          <span class="tag">{{ produit.nom }} - {{ produit.prix_unitaire }}€</span>
+          <span class="tag">{{ produit.nom }} - {{ produit.prix_unitaire }} FCFA</span>
         {% endfor %}
       {% endif %}
       {% if livraison.sacs.all %}

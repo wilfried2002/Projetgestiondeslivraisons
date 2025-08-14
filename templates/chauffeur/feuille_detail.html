@@ -75,7 +75,7 @@
             {% if l.produits.all %}
               <p><strong>Produits:</strong></p>
               {% for produit in l.produits.all %}
-                <span class="tag">{{ produit.nom }} ({{ produit.prix_unitaire }}€)</span>
+                <span class="tag">{{ produit.nom }} ({{ produit.prix_unitaire }} FCFA)</span>
               {% endfor %}
             {% endif %}
             {% if l.sacs.all %}

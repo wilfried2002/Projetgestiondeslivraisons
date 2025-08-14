@@ -2,7 +2,7 @@ from django.contrib import admin
 from django.utils.html import format_html
 from django.urls import reverse
 from django.utils.safestring import mark_safe
-from .models import Chauffeur, Client, FeuilleDeRoute, Livraison, Produit, Sac
+from .models import Chauffeur, Client, FeuilleDeRoute, Livraison, Produit, Sac, Vehicule
 
 # Personnalisation du site admin
 admin.site.site_header = "🚚 Administration - Suivi de Livraison"
@@ -48,11 +48,32 @@ class SacAdmin(admin.ModelAdmin):
     )
 
 
+@admin.register(Vehicule)
+class VehiculeAdmin(admin.ModelAdmin):
+    list_display = ('marque', 'modele', 'immatriculation', 'couleur', 'actif', 'date_creation')
+    list_filter = ('marque', 'actif', 'annee', 'couleur')
+    search_fields = ('marque', 'modele', 'immatriculation', 'couleur')
+    list_editable = ('actif',)
+    ordering = ('marque', 'modele')
+    
+    fieldsets = (
+        ('Informations générales', {
+            'fields': ('nom', 'marque', 'modele', 'immatriculation')
+        }),
+        ('Caractéristiques', {
+            'fields': ('annee', 'couleur', 'capacite')
+        }),
+        ('Statut et notes', {
+            'fields': ('actif', 'notes'),
+            'classes': ('collapse',)
+        }),
+    )
+
+
 @admin.register(Chauffeur)
 class ChauffeurAdmin(admin.ModelAdmin):
-    list_display = ('user', 'telephone', 'vehicule', 'immatriculation', 'get_full_name')
-    search_fields = ('user__username', 'user__first_name', 'user__last_name', 'immatriculation', 'vehicule')
-    list_filter = ('vehicule',)
+    list_display = ('user', 'telephone', 'get_full_name')
+    search_fields = ('user__username', 'user__first_name', 'user__last_name', 'telephone')
     
     def get_full_name(self, obj):
         return obj.user.get_full_name() or obj.user.username
@@ -63,7 +84,7 @@ class ChauffeurAdmin(admin.ModelAdmin):
             'fields': ('user',)
         }),
         ('Informations professionnelles', {
-            'fields': ('telephone', 'vehicule', 'immatriculation')
+            'fields': ('telephone',)
         }),
     )
 
@@ -97,12 +118,12 @@ class LivraisonInline(admin.TabularInline):
 
 @admin.register(FeuilleDeRoute)
 class FeuilleDeRouteAdmin(admin.ModelAdmin):
-    list_display = ('id', 'chauffeur', 'date_route', 'date_creation', 'statut', 'get_livraisons_count', 'qr_code_link')
-    list_filter = ('statut', 'date_route', 'date_creation', 'chauffeur')
-    search_fields = ('id', 'chauffeur__user__username', 'chauffeur__vehicule', 'chauffeur__immatriculation')
+    list_display = ('id', 'chauffeur', 'vehicule', 'date_route', 'date_creation', 'statut', 'get_livraisons_count', 'qr_code_link', 'print_buttons')
+    list_filter = ('statut', 'date_route', 'date_creation', 'chauffeur', 'vehicule')
+    search_fields = ('id', 'chauffeur__user__username', 'vehicule__immatriculation', 'vehicule__marque')
     date_hierarchy = 'date_route'
     inlines = [LivraisonInline]
-    readonly_fields = ('token', 'qr_code', 'last_latitude', 'last_longitude', 'last_position_at')
+    readonly_fields = ('token', 'qr_code', 'last_latitude', 'last_longitude', 'last_position_at', 'date_observations')
     
     def get_livraisons_count(self, obj):
         count = obj.livraisons.count()
@@ -116,9 +137,21 @@ class FeuilleDeRouteAdmin(admin.ModelAdmin):
         return "Pas de QR"
     qr_code_link.short_description = "QR Code"
     
+    def print_buttons(self, obj):
+        return format_html(
+            '<a href="/dashboard/rapport-livraisons/?chauffeur={}" class="button" target="_blank">📊 Rapport</a> '
+            '<a href="/dashboard/export-csv-livraisons/?chauffeur={}" class="button" target="_blank">📄 CSV</a>',
+            obj.chauffeur.id, obj.chauffeur.id
+        )
+    print_buttons.short_description = "Actions"
+    
     fieldsets = (
         ('Informations générales', {
-            'fields': ('chauffeur', 'date_route', 'statut')
+            'fields': ('chauffeur', 'vehicule', 'date_route', 'statut')
+        }),
+        ('Observations chauffeur', {
+            'fields': ('observations_chauffeur', 'date_observations'),
+            'classes': ('collapse',)
         }),
         ('Système', {
             'fields': ('token', 'qr_code'),
@@ -133,47 +166,38 @@ class FeuilleDeRouteAdmin(admin.ModelAdmin):
 
 @admin.register(Livraison)
 class LivraisonAdmin(admin.ModelAdmin):
-    list_display = ('reference_commande', 'client', 'feuille', 'quantite', 'statut', 'date_livraison', 'get_produits', 'get_sacs')
-    list_filter = ('statut', 'date_livraison', 'feuille__chauffeur', 'produits', 'sacs')
-    search_fields = ('reference_commande', 'client__nom', 'client__telephone', 'notes')
-    date_hierarchy = 'date_livraison'
-    autocomplete_fields = ['client', 'produits', 'sacs']
+    list_display = ('id', 'feuille', 'client', 'reference_commande', 'quantite', 'statut', 'date_livraison', 'get_produits_display')
+    list_filter = ('statut', 'date_livraison', 'feuille__chauffeur', 'feuille__vehicule')
+    search_fields = ('reference_commande', 'client__nom', 'feuille__chauffeur__user__username')
     readonly_fields = ('public_token', 'date_livraison')
+    autocomplete_fields = ['client', 'produits', 'sacs']
     
-    def get_produits(self, obj):
+    def get_produits_display(self, obj):
         produits = obj.produits.all()
         if produits:
-            return ", ".join([p.nom for p in produits[:3]])
-        return "Aucun"
-    get_produits.short_description = "Produits"
-    
-    def get_sacs(self, obj):
-        sacs = obj.sacs.all()
-        if sacs:
-            return ", ".join([s.nom for s in sacs[:3]])
-        return "Aucun"
-    get_sacs.short_description = "Sacs"
-    
-    fieldsets = (
-        ('Informations de livraison', {
-            'fields': ('feuille', 'client', 'reference_commande', 'quantite', 'horaire_estime', 'statut')
-        }),
-        ('Produits et sacs', {
-            'fields': ('produits', 'sacs'),
-            'description': 'Sélectionnez les produits et sacs à livrer'
-        }),
-        ('Preuves et documents', {
-            'fields': ('preuve_photo', 'signature_client'),
-            'classes': ('collapse',)
-        }),
-        ('Informations système', {
-            'fields': ('public_token', 'date_livraison', 'notes'),
-            'classes': ('collapse',)
-        }),
-    )
+            return ', '.join([p.nom for p in produits[:3]])
+        return "Aucun produit"
+    get_produits_display.short_description = "Produits"
     
     def save_model(self, request, obj, form, change):
         if obj.statut == 'livre' and not obj.date_livraison:
             from django.utils import timezone
             obj.date_livraison = timezone.now()
         super().save_model(request, obj, form, change)
+    
+    fieldsets = (
+        ('Informations générales', {
+            'fields': ('feuille', 'client', 'reference_commande', 'quantite', 'horaire_estime', 'statut')
+        }),
+        ('Produits et sacs', {
+            'fields': ('produits', 'sacs')
+        }),
+        ('Preuves et signatures', {
+            'fields': ('preuve_photo', 'signature_client', 'signature_tactile'),
+            'classes': ('collapse',)
+        }),
+        ('Système', {
+            'fields': ('public_token', 'date_livraison', 'notes'),
+            'classes': ('collapse',)
+        }),
+    )

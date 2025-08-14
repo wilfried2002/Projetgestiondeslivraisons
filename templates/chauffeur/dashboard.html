@@ -25,6 +25,12 @@
             justify-content: space-between;
             align-items: center;
         }
+        .vehicule-info {
+            background: rgba(255,255,255,0.1);
+            padding: 10px;
+            border-radius: 5px;
+            margin-top: 10px;
+        }
         .stats {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -100,9 +106,23 @@
     <div class="container">
         <div class="header">
             <div>
-                <h1>�� Tableau de bord Chauffeur</h1>
+                <h1> Tableau de bord Chauffeur</h1>
                 <p>Bienvenue, {{ chauffeur.user.get_full_name|default:chauffeur.user.username }}</p>
-                <p>Véhicule: {{ chauffeur.vehicule }} - {{ chauffeur.immatriculation }}</p>
+                
+                <!-- Affichage du véhicule assigné -->
+                {% if vehicule_actuel %}
+                    <div class="vehicule-info">
+                        <strong>🚗 Véhicule assigné:</strong><br>
+                        <strong>Nom:</strong> {{ vehicule_actuel.nom }}<br>
+                        <strong>Marque:</strong> {{ vehicule_actuel.marque }}<br>
+                        <strong>Modèle:</strong> {{ vehicule_actuel.modele }}<br>
+                        <strong>Immatriculation:</strong> {{ vehicule_actuel.immatriculation }}
+                    </div>
+                {% else %}
+                    <div class="vehicule-info">
+                        <em>Aucun véhicule assigné pour le moment</em>
+                    </div>
+                {% endif %}
             </div>
             <a href="{% url 'chauffeur:logout' %}" class="btn btn-logout">🚪 Déconnexion</a>
         </div>
@@ -133,6 +153,9 @@
                                 <h3>Feuille #{{ feuille.id }}</h3>
                                 <p>Date: {{ feuille.date_route|default:feuille.date_creation }}</p>
                                 <p>Livraisons: {{ feuille.livraisons.count }}</p>
+                                {% if feuille.vehicule %}
+                                    <p><strong>Véhicule:</strong> {{ feuille.vehicule.marque }} {{ feuille.vehicule.modele }}</p>
+                                {% endif %}
                             </div>
                             <div>
                                 <span class="status-badge status-{{ feuille.statut }}">
@@ -155,5 +178,4 @@
     </div>
 </body>
 </html>
-```
 

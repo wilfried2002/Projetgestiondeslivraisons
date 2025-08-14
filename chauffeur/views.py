@@ -39,17 +39,25 @@ def chauffeur_dashboard(request):
         messages.error(request, 'Vous n\'êtes pas un chauffeur autorisé.')
         return redirect('chauffeur:login')
     
-    # Récupérer les feuilles de route du chauffeur
-    feuilles = FeuilleDeRoute.objects.filter(chauffeur=chauffeur).order_by('-date_route', '-date_creation')
+    # Récupérer les feuilles de route du chauffeur avec le véhicule assigné
+    feuilles = FeuilleDeRoute.objects.filter(chauffeur=chauffeur).select_related('vehicule').order_by('-date_route', '-date_creation')
     
     # Statistiques
     total_feuilles = feuilles.count()
     feuilles_en_cours = feuilles.filter(statut='en_route').count()
     feuilles_terminees = feuilles.filter(statut='terminee').count()
     
+    # Trouver le véhicule actuellement assigné (feuille en cours ou planifiée)
+    vehicule_actuel = None
+    for feuille in feuilles:
+        if feuille.vehicule and feuille.statut in ['planifie', 'en_route']:
+            vehicule_actuel = feuille.vehicule
+            break
+    
     context = {
         'chauffeur': chauffeur,
         'feuilles': feuilles,
+        'vehicule_actuel': vehicule_actuel,
         'total_feuilles': total_feuilles,
         'feuilles_en_cours': feuilles_en_cours,
         'feuilles_terminees': feuilles_terminees,
@@ -79,6 +87,13 @@ def feuille_detail_chauffeur(request, feuille_id):
             feuille.statut = 'probleme'
             feuille.save()
             messages.warning(request, 'Feuille de route marquée comme "Problème"')
+        elif action == 'update_observations':
+            observations = request.POST.get('observations_chauffeur', '').strip()
+            if observations:
+                feuille.observations_chauffeur = observations
+                feuille.date_observations = timezone.now()
+                feuille.save(update_fields=['observations_chauffeur', 'date_observations'])
+                messages.success(request, 'Observations mises à jour')
         
         return redirect('chauffeur:feuille_detail', feuille_id=feuille_id)
     

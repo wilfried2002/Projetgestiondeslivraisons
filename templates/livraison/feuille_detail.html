@@ -2,7 +2,8 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Feuille de route</title>
   <style>
     .badge{padding:2px 6px;border-radius:4px}
@@ -20,22 +21,89 @@
     .btn-danger{background:#dc3545}
     .form-group{margin-bottom:10px}
     .form-group label{display:block;margin-bottom:5px;font-weight:bold}
-    .form-group input,.form-group select{width:100%;padding:8px;border:1px solid #ddd;border-radius:4px}
+    .form-group input,.form-group select,.form-group textarea{width:100%;padding:8px;border:1px solid #ddd;border-radius:4px}
     .status-badge{display:inline-block;padding:4px 8px;border-radius:12px;font-size:12px;font-weight:bold}
+    
+    /* Styles pour la signature tactile */
+    .signature-pad {
+      border: 2px solid #ddd;
+      border-radius: 8px;
+      background: white;
+      cursor: crosshair;
+      margin: 10px 0;
+    }
+    .signature-controls {
+      margin: 10px 0;
+    }
+    .signature-controls button {
+      margin-right: 10px;
+      padding: 5px 10px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      background: #f8f9fa;
+      cursor: pointer;
+    }
+    .signature-controls button:hover {
+      background: #e9ecef;
+    }
+    
+    /* Styles pour les observations */
+    .observations-section {
+      background: #f8f9fa;
+      padding: 15px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+    }
+    .observations-display {
+      background: white;
+      padding: 10px;
+      border-radius: 4px;
+      border-left: 4px solid #007bff;
+      margin-top: 10px;
+    }
   </style>
 </head>
 <body>
   <div class="container">
     <div class="header">
-      <h2> Feuille de route #{{ feuille.id }}</h2>
+      <h2>Feuille de route #{{ feuille.id }}</h2>
       <p><strong>Chauffeur:</strong> {{ feuille.chauffeur.user.get_full_name|default:feuille.chauffeur.user.username }}</p>
-      <p><strong>Véhicule:</strong> {{ feuille.chauffeur.vehicule }} — <strong>Immat:</strong> {{ feuille.chauffeur.immatriculation }}</p>
+      {% if feuille.vehicule %}
+        <p><strong>Véhicule:</strong> {{ feuille.vehicule.marque }} {{ feuille.vehicule.modele }} — <strong>Immat:</strong> {{ feuille.vehicule.immatriculation }}</p>
+      {% else %}
+        <p><strong>Véhicule:</strong> <em>Aucun véhicule assigné</em></p>
+      {% endif %}
       <p><strong>Date:</strong> {{ feuille.date_route|default:feuille.date_creation }}</p>
       <p><strong>Statut:</strong> 
         <span class="status-badge {% if feuille.statut == 'terminee' %}green{% elif feuille.statut == 'probleme' %}red{% else %}orange{% endif %}">
           {{ feuille.get_statut_display }}
         </span>
       </p>
+    </div>
+
+    <!-- Section Observations -->
+    <div class="observations-section">
+      <h3>📝 Observations du chauffeur</h3>
+      {% if feuille.observations_chauffeur %}
+        <div class="observations-display">
+          <p><strong>Observations:</strong></p>
+          <p>{{ feuille.observations_chauffeur|linebreaks }}</p>
+          {% if feuille.date_observations %}
+            <small><em>Ajouté le {{ feuille.date_observations|date:"d/m/Y à H:i" }}</em></small>
+          {% endif %}
+        </div>
+      {% else %}
+        <p><em>Aucune observation pour le moment</em></p>
+      {% endif %}
+      
+      <form method="post" style="margin-top: 15px;">
+        {% csrf_token %}
+        <div class="form-group">
+          <label for="observations_chauffeur">Ajouter/modifier les observations:</label>
+          <textarea name="observations_chauffeur" id="observations_chauffeur" rows="4" placeholder="Décrivez ici vos observations, problèmes rencontrés, etc...">{{ feuille.observations_chauffeur }}</textarea>
+        </div>
+        <button type="submit" name="update_observations" class="btn btn-success">💾 Sauvegarder les observations</button>
+      </form>
     </div>
 
     {% if feuille.qr_code %}
@@ -75,7 +143,7 @@
             {% if l.produits.all %}
               <p><strong>Produits:</strong></p>
               {% for produit in l.produits.all %}
-                <span class="tag">{{ produit.nom }} ({{ produit.prix_unitaire }}€)</span>
+                <span class="tag">{{ produit.nom }} ({{ produit.prix_unitaire }} FCFA)</span>
               {% endfor %}
             {% endif %}
             {% if l.sacs.all %}
@@ -97,14 +165,28 @@
               <option value="probleme" {% if l.statut == 'probleme' %}selected{% endif %}>Problème</option>
             </select>
           </div>
+          
           <div class="form-group">
             <label>Preuve photo (optionnel):</label>
             <input type="file" name="preuve_photo" accept="image/*" capture="environment">
           </div>
+          
           <div class="form-group">
-            <label>Signature client (optionnel):</label>
+            <label>Signature client - Fichier (optionnel):</label>
             <input type="file" name="signature_client" accept="image/*">
           </div>
+          
+          <!-- Signature tactile -->
+          <div class="form-group">
+            <label>Signature tactile (optionnel):</label>
+            <div class="signature-controls">
+              <button type="button" onclick="clearSignature('{{ l.id }}')">🖍️ Effacer</button>
+              <button type="button" onclick="saveSignature('{{ l.id }}')">💾 Sauvegarder</button>
+            </div>
+            <canvas id="signature-pad-{{ l.id }}" class="signature-pad" width="400" height="200"></canvas>
+            <input type="hidden" name="signature_tactile" id="signature-data-{{ l.id }}" value="">
+          </div>
+          
           <button type="submit" class="btn">💾 Mettre à jour</button>
         </form>
 
@@ -117,8 +199,15 @@
         
         {% if l.signature_client %}
           <div style="margin-top:10px;">
-            <p><strong>✍️ Signature client:</strong></p>
+            <p><strong>✍️ Signature client (fichier):</strong></p>
             <img src="{{ l.signature_client.url }}" alt="" width="200" style="border-radius:8px;">
+          </div>
+        {% endif %}
+        
+        {% if l.signature_tactile %}
+          <div style="margin-top:10px;">
+            <p><strong>✍️ Signature tactile:</strong></p>
+            <div id="signature-display-{{ l.id }}"></div>
           </div>
         {% endif %}
         
@@ -141,7 +230,129 @@
     {% endfor %}
   </div>
 
+
   <script>
+    // Signature tactile
+    const signaturePads = {};
+    
+    {% for l in livraisons %}
+      const canvas{{ l.id }} = document.getElementById('signature-pad-{{ l.id }}');
+      const ctx{{ l.id }} = canvas{{ l.id }}.getContext('2d');
+      let isDrawing{{ l.id }} = false;
+      let lastX{{ l.id }} = 0;
+      let lastY{{ l.id }} = 0;
+      
+      // Configuration du canvas
+      ctx{{ l.id }}.strokeStyle = '#000';
+      ctx{{ l.id }}.lineWidth = 2;
+      ctx{{ l.id }}.lineCap = 'round';
+      
+      // Événements de dessin
+      canvas{{ l.id }}.addEventListener('mousedown', startDrawing{{ l.id }});
+      canvas{{ l.id }}.addEventListener('mousemove', draw{{ l.id }});
+      canvas{{ l.id }}.addEventListener('mouseup', stopDrawing{{ l.id }});
+      canvas{{ l.id }}.addEventListener('mouseout', stopDrawing{{ l.id }});
+      
+      // Support tactile
+      canvas{{ l.id }}.addEventListener('touchstart', handleTouchStart{{ l.id }});
+      canvas{{ l.id }}.addEventListener('touchmove', handleTouchMove{{ l.id }});
+      canvas{{ l.id }}.addEventListener('touchend', stopDrawing{{ l.id }});
+      
+      function startDrawing{{ l.id }}(e) {
+        isDrawing{{ l.id }} = true;
+        const rect = canvas{{ l.id }}.getBoundingClientRect();
+        lastX{{ l.id }} = e.clientX - rect.left;
+        lastY{{ l.id }} = e.clientY - rect.top;
+      }
+      
+      function draw{{ l.id }}(e) {
+        if (!isDrawing{{ l.id }}) return;
+        e.preventDefault();
+        
+        const rect = canvas{{ l.id }}.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        
+        ctx{{ l.id }}.beginPath();
+        ctx{{ l.id }}.moveTo(lastX{{ l.id }}, lastY{{ l.id }});
+        ctx{{ l.id }}.lineTo(x, y);
+        ctx{{ l.id }}.stroke();
+        
+        lastX{{ l.id }} = x;
+        lastY{{ l.id }} = y;
+      }
+      
+      function stopDrawing{{ l.id }}() {
+        isDrawing{{ l.id }} = false;
+      }
+      
+      function handleTouchStart{{ l.id }}(e) {
+        e.preventDefault();
+        const touch = e.touches[0];
+        const rect = canvas{{ l.id }}.getBoundingClientRect();
+        lastX{{ l.id }} = touch.clientX - rect.left;
+        lastY{{ l.id }} = touch.clientY - rect.top;
+        isDrawing{{ l.id }} = true;
+      }
+      
+      function handleTouchMove{{ l.id }}(e) {
+        e.preventDefault();
+        if (!isDrawing{{ l.id }}) return;
+        
+        const touch = e.touches[0];
+        const rect = canvas{{ l.id }}.getBoundingClientRect();
+        const x = touch.clientX - rect.left;
+        const y = touch.clientY - rect.top;
+        
+        ctx{{ l.id }}.beginPath();
+        ctx{{ l.id }}.moveTo(lastX{{ l.id }}, lastY{{ l.id }});
+        ctx{{ l.id }}.lineTo(x, y);
+        ctx{{ l.id }}.stroke();
+        
+        lastX{{ l.id }} = x;
+        lastY{{ l.id }} = y;
+      }
+      
+      // Fonctions globales
+      window.clearSignature{{ l.id }} = function() {
+        ctx{{ l.id }}.clearRect(0, 0, canvas{{ l.id }}.width, canvas{{ l.id }}.height);
+        document.getElementById('signature-data-{{ l.id }}').value = '';
+      };
+      
+      window.saveSignature{{ l.id }} = function() {
+        const dataURL = canvas{{ l.id }}.toDataURL();
+        document.getElementById('signature-data-{{ l.id }}').value = dataURL;
+      };
+      
+      // Afficher la signature existante si elle existe
+      {% if l.signature_tactile %}
+        const displayDiv{{ l.id }} = document.getElementById('signature-display-{{ l.id }}');
+        const img{{ l.id }} = document.createElement('img');
+        img{{ l.id }}.src = '{{ l.signature_tactile }}';
+        img{{ l.id }}.style.width = '200px';
+        img{{ l.id }}.style.borderRadius = '8px';
+        displayDiv{{ l.id }}.appendChild(img{{ l.id }});
+      {% endif %}
+    {% endfor %}
+    
+    // Fonctions globales pour tous les pads
+    function clearSignature(padId) {
+      const canvas = document.getElementById('signature-pad-' + padId);
+      if (canvas) {
+        const ctx = canvas.getContext('2d');
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        document.getElementById('signature-data-' + padId).value = '';
+      }
+    }
+    
+    function saveSignature(padId) {
+      const canvas = document.getElementById('signature-pad-' + padId);
+      if (canvas) {
+        const dataURL = canvas.toDataURL();
+        document.getElementById('signature-data-' + padId).value = dataURL;
+      }
+    }
+    
     // Géolocalisation automatique
     if (navigator.geolocation) {
       setInterval(() => {
